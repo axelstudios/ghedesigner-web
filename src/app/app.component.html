@@ -1,0 +1,20 @@
+@if (isLoaded | async) {
+  <div>Loaded</div>
+} @else {
+  <div>Loading: {{ (loadingProgress.value / loadingProgress.total || 0) * 100 | number: '1.0-0' }}%</div>
+}
+
+@if ((results | keyvalue).length > 0) {
+  <table class="table-auto border-separate border-spacing-2 border border-gray-400 dark:border-gray-500">
+    @for (result of results | keyvalue; track result.key) {
+      <tr>
+        <td>{{ result.key }}</td>
+        @if (result.value === -1) {
+          <td class="flex-fill flex h-6 items-center justify-center"><span class="loader"></span></td>
+        } @else {
+          <td class="text-right">✅ {{ result.value | number: '1.1-1' }}s</td>
+        }
+      </tr>
+    }
+  </table>
+}

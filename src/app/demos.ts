@@ -1,0 +1,16 @@
+export const demos = [
+  'find_design_bi_rectangle_constrained_single_u_tube.json',
+  'find_design_bi_rectangle_double_u_tube_series.json',
+  'find_design_bi_rectangle_single_u_tube.json',
+  'find_design_bi_zoned_rectangle_single_u_tube.json',
+  'find_design_near_square_coaxial.json',
+  'find_design_near_square_double_u_tube.json',
+  'find_design_near_square_single_u_tube.json',
+  'find_design_rectangle_coaxial.json',
+  'find_design_rectangle_double_u_tube.json',
+  'find_design_rectangle_single_u_tube.json',
+  'find_design_rowwise_single_u_tube.json',
+  // 'find_design_simple_system.json',
+  'input_bldg0000056_odd_loads.json',
+  'issue_97_interp_out_of_range.json',
+]
