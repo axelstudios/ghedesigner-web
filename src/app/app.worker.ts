@@ -86,17 +86,25 @@ async function runDemo(id: string, demo: string) {
 
   const start = performance.now()
   await pyodide.runPythonAsync(`
+    import os
     from importlib.resources import files
     from json import loads
     from pathlib import Path
 
     import ghedesigner
-    from ghedesigner.main import _run_manager_from_cli_worker as run_manager_from_cli_worker
+    from ghedesigner.__main__ import _run_manager_from_cli_worker as run_manager_from_cli_worker
     from jsonschema import validate, ValidationError
     from pyodide.http import pyfetch
 
     schema_path = files("ghedesigner") / "schemas" / "ghedesigner.schema.json"
     schema = loads(schema_path.read_text())
+    
+    # TODO this is conditional on one file
+    if "${demo}" == "find_design_simple_system.json":
+        res = await pyfetch("demos/test-data/test_bldg_loads.csv")
+        if res.ok:
+            os.mkdir("/home/pyodide/test_data")
+            Path("/home/pyodide/test_data/test_bldg_loads.csv").write_text(await res.text())
 
     res = await pyfetch("demos/${demo}")
     if res.ok:

@@ -1,18 +1,75 @@
-@if (isLoaded | async) {
-  <div>Loaded</div>
-} @else {
-  <div>Loading: {{ (loadingProgress.value / loadingProgress.total || 0) * 100 | number: '1.0-0' }}%</div>
-}
+<app-loading [progress]="(loadingProgress.value / loadingProgress.total || 0) * 100"></app-loading>
+
+<p-menubar class="flex min-h-11" [model]="items" [autoDisplay]="true" breakpoint="640px" styleClass="w-full border-none">
+  <ng-template #start>
+    <div class="justify-center pr-4 pl-3 leading-none font-bold">GHEDesigner</div>
+  </ng-template>
+
+  <ng-template #end>
+    @if (version) {
+      <div class="justify-center pr-3 text-sm leading-none text-current/50">v{{ version }}</div>
+    }
+  </ng-template>
+</p-menubar>
+
+<div class="divide-divider flex max-h-[calc(100svh-44px)] flex-grow divide-x">
+  <div class="divide-divider flex w-1/2 divide-x">
+    <div class="flex flex-col text-[13px]">
+      @for (demo of demos; track demo) {
+        <div class="flex h-8 items-center gap-2">
+          <i class="pi pi-check-circle pl-1.5 text-green-500"></i>
+          <div
+            class="text-active w-48 cursor-default truncate"
+            [pTooltip]="demo"
+            [showDelay]="500"
+            [positionLeft]="32"
+            tooltipPosition="right"
+            tooltipStyleClass="text-sm"
+          >
+            {{ demo }}
+          </div>
+          <p-button [rounded]="true" [text]="true" icon="pi pi-times" size="small" />
+        </div>
+        @if (demo === 'find_design_simple_system.json') {
+          <div class="flex h-8 items-center gap-2">
+            <i class="pi pi-table pl-6.5"></i>
+            <div
+              class="w-43 truncate"
+              [showDelay]="500"
+              [positionLeft]="32"
+              pTooltip="test_bldg_loads.csv"
+              tooltipPosition="right"
+              tooltipStyleClass="text-sm"
+            >
+              test_bldg_loads.csv
+            </div>
+          </div>
+        }
+      }
+    </div>
+    <div class="flex flex-1 font-mono">
+      <ngx-monaco-editor
+        class="h-[calc(100svh-44px)]! w-full! overflow-hidden"
+        [options]="editorOptions"
+        [model]="editorModel"
+        (onInit)="onEditorInit($event)"
+      ></ngx-monaco-editor>
+    </div>
+  </div>
+  <div class="w-1/2"></div>
+</div>
 
 @if ((results | keyvalue).length > 0) {
-  <table class="table-auto border-separate border-spacing-2 border border-gray-400 dark:border-gray-500">
-    @for (result of results | keyvalue; track result.key) {
+  <table class="table-auto border-separate border-spacing-2 border border-gray-500">
+    @for (demo of demos; track demo) {
       <tr>
-        <td>{{ result.key }}</td>
-        @if (result.value === -1) {
-          <td class="flex-fill flex h-6 items-center justify-center"><span class="loader"></span></td>
+        <td>{{ demo }}</td>
+        @if (results[demo] === -1) {
+          <td class="flex-fill flex h-6 min-w-16 items-center justify-center"><span class="loader"></span></td>
+        } @else if (results[demo] === undefined) {
+          <td></td>
         } @else {
-          <td class="text-right">✅ {{ result.value | number: '1.1-1' }}s</td>
+          <td class="min-w-16 text-right">{{ results[demo] | number: '1.1-1' }}s ✅</td>
         }
       </tr>
     }

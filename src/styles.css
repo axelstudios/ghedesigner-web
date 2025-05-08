@@ -1,7 +1,36 @@
+@import '@fontsource-variable/inter';
+@import 'primeicons/primeicons.css';
 @import 'tailwindcss';
 
-body {
-  @apply bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100;
+@plugin 'tailwindcss-primeui';
+
+@theme {
+  --font-inter: 'Inter Variable';
+  --spacing: calc(16 / 14 * 0.25rem);
+  --text-base: 0.875rem;
+
+  --color-bg: #1e1f22;
+  --color-divider: #393b40;
+  --color-active: #70aeff;
+  --color-inactive: #5f93d6;
+}
+
+@layer base {
+  html {
+    @apply text-base;
+  }
+
+  body {
+    @apply font-inter bg-bg h-svh overflow-hidden text-gray-100;
+  }
+
+  app-root {
+    @apply flex h-svh w-svw flex-col;
+  }
+}
+
+.editor-container {
+  @apply h-full!;
 }
 
 .loader {

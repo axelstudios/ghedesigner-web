@@ -1,23 +1,78 @@
 import { CommonModule } from '@angular/common'
 import { Component, OnInit } from '@angular/core'
+import type { NgxEditorModel } from 'ngx-monaco-editor-v2'
+import { MonacoEditorModule } from 'ngx-monaco-editor-v2'
+import { MenuItem, PrimeIcons } from 'primeng/api'
+import { ButtonModule } from 'primeng/button'
+import { MenubarModule } from 'primeng/menubar'
+import { TooltipModule } from 'primeng/tooltip'
 import { v7 as uuid } from 'uuid'
 import type { Request, Response, Result } from './app.types'
 import { demos } from './demos'
+import { LoadingComponent } from './loading/loading.component'
+import { FormsModule } from '@angular/forms'
+import { editor, Uri } from 'monaco-editor'
+import type monacoType from 'monaco-editor'
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule],
+  imports: [ButtonModule, CommonModule, LoadingComponent, MenubarModule, MonacoEditorModule, TooltipModule, FormsModule],
   templateUrl: './app.component.html',
+  host: {
+    '[class.pointer-events-none]': '!isLoaded',
+  },
 })
 export class AppComponent implements OnInit {
+  editor?: editor.IStandaloneCodeEditor
+  editorOptions: editor.IGlobalEditorOptions = {
+    theme: 'vs-dark',
+    tabSize: 2,
+    insertSpaces: true,
+  }
+
   loadingProgress = { value: 0, total: 0 }
+  isLoaded = true
+  isLoadedPromise: Promise<boolean>
   worker: Worker | undefined
-  isLoaded: Promise<boolean>
   results: Record<string, number> = {}
+  demos = demos
+  version = ''
+
+  editorModel: NgxEditorModel = {
+    value: `{
+  "p1": "v3",
+  "p2": true
+}`,
+    language: 'json',
+    uri: Uri.parse('inmemory://demo/foo.json'),
+  }
+
+  items: MenuItem[] = [
+    {
+      label: 'File',
+      icon: PrimeIcons.FILE,
+    },
+    {
+      label: 'Demos',
+      icon: PrimeIcons.CODE,
+      items: demos.map((demo) => ({
+        label: demo.replace(/\.json$/, ''),
+        icon: PrimeIcons.FILE_IMPORT,
+      })),
+    },
+    {
+      label: 'GitHub',
+      icon: PrimeIcons.GITHUB,
+      url: 'https://github.com/BETSRG/GHEDesigner',
+      target: '_blank',
+    },
+  ]
+
   private resolveLoaded!: (value: boolean | PromiseLike<boolean>) => void
+  private monaco!: typeof monacoType
 
   constructor() {
-    this.isLoaded = new Promise((resolve) => {
+    this.isLoadedPromise = new Promise((resolve) => {
       this.resolveLoaded = resolve
     })
 
@@ -30,13 +85,16 @@ export class AppComponent implements OnInit {
         this.loadingProgress = { ...data }
         if (data.value === data.total) {
           this.resolveLoaded(true)
+          this.isLoaded = true
         }
+      } else if (data.type === 'version') {
+        this.version = data.version
       }
     }
   }
 
   async ngOnInit() {
-    await this.isLoaded
+    await this.isLoadedPromise
 
     for (const demo of demos) {
       this.results[demo] = -1
@@ -77,5 +135,16 @@ export class AppComponent implements OnInit {
 
   sendMessage(message: Request) {
     this.worker?.postMessage(message)
+  }
+
+  onEditorInit(editor: editor.IStandaloneCodeEditor) {
+    this.monaco = window.monaco
+    this.editor = editor
+
+    this.monaco.editor.onDidChangeMarkers((uris) => {
+      console.log('CHANGE DETECTED', uris)
+      const markers = this.monaco.editor.getModelMarkers({ owner: 'json' })
+      console.log(markers)
+    })
   }
 }

@@ -42,6 +42,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
+            "baseHref": "./",
             "outputPath": "dist",
             "index": "src/index.html",
             "browser": "src/main.ts",
@@ -59,6 +60,11 @@
                 "glob": "{pyodide*.{js,json,mjs,wasm},python_stdlib.zip}",
                 "input": "node_modules/pyodide",
                 "output": "/pyodide"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/monaco-editor/min",
+                "output": "/monaco"
               }
             ],
             "styles": [
