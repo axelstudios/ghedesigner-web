@@ -1,4 +1,4 @@
-<app-loading [progress]="(loadingProgress.value / loadingProgress.total || 0) * 100"></app-loading>
+<!--<app-loading [progress]="(loadingProgress.value / loadingProgress.total || 0) * 100"></app-loading>-->
 
 <p-menubar class="flex min-h-11" [model]="items" [autoDisplay]="true" breakpoint="640px" styleClass="w-full border-none">
   <ng-template #start>
@@ -47,7 +47,7 @@
         }
       }
     </div>
-    <div class="flex flex-1 font-mono">
+    <div class="flex flex-1 overflow-x-hidden font-mono">
       <ngx-monaco-editor
         class="h-[calc(100svh-44px)]! w-full! overflow-hidden"
         [options]="editorOptions"

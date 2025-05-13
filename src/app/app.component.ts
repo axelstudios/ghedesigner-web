@@ -11,8 +11,12 @@ import type { Request, Response, Result } from './app.types'
 import { demos } from './demos'
 import { LoadingComponent } from './loading/loading.component'
 import { FormsModule } from '@angular/forms'
-import { editor, Uri } from 'monaco-editor'
 import type monacoType from 'monaco-editor'
+import { editor, Uri } from 'monaco-editor'
+import findDesignBiRectangleConstrainedSingleUTube from '../../public/demos/find_design_bi_rectangle_constrained_single_u_tube.json'
+import prettier from 'prettier/standalone'
+import prettierBabelPlugin from 'prettier/plugins/babel'
+import prettierPluginEstree from 'prettier/plugins/estree'
 
 @Component({
   selector: 'app-root',
@@ -39,10 +43,7 @@ export class AppComponent implements OnInit {
   version = ''
 
   editorModel: NgxEditorModel = {
-    value: `{
-  "p1": "v3",
-  "p2": true
-}`,
+    value: '',
     language: 'json',
     uri: Uri.parse('inmemory://demo/foo.json'),
   }
@@ -94,17 +95,21 @@ export class AppComponent implements OnInit {
   }
 
   async ngOnInit() {
+    this.editorModel.value = await prettier.format(JSON.stringify(findDesignBiRectangleConstrainedSingleUTube), {
+      parser: 'json',
+      plugins: [prettierBabelPlugin, prettierPluginEstree],
+    })
     await this.isLoadedPromise
 
-    for (const demo of demos) {
-      this.results[demo] = -1
-      console.log(`Running demo: ${demo}...`)
-
-      const result = (await this.requestResponse({ type: 'runDemo', demo, id: uuid() })) as Result
-      this.results[demo] = result.time
-    }
-
-    await this.requestResponse({ type: 'listFiles', id: uuid() })
+    // for (const demo of demos) {
+    //   this.results[demo] = -1
+    //   console.log(`Running demo: ${demo}...`)
+    //
+    //   const result = (await this.requestResponse({ type: 'runDemo', demo, id: uuid() })) as Result
+    //   this.results[demo] = result.time
+    // }
+    //
+    // await this.requestResponse({ type: 'listFiles', id: uuid() })
   }
 
   getPromiseAndResolve() {
