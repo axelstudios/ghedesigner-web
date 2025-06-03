@@ -11,7 +11,6 @@ export type Request =
 
 export type Result = {
   type: 'result'
-  name: string
   captured: { level: string; args: unknown[]; time: number }[]
   time: number
 }

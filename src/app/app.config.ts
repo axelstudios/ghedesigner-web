@@ -1,15 +1,12 @@
-import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core'
+import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection } from '@angular/core'
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async'
-import { providePrimeNG } from 'primeng/config'
-import Aura from '@primeng/themes/aura'
 import { definePreset } from '@primeng/themes'
-import { provideMonacoEditor } from 'ngx-monaco-editor-v2'
+import Aura from '@primeng/themes/aura'
 import type monacoType from 'monaco-editor'
+import { provideMonacoEditor } from 'ngx-monaco-editor-v2'
+import { providePrimeNG } from 'primeng/config'
 import schema from '../../public/ghedesigner.schema.json'
-import findDesignBiRectangleConstrainedSingleUTube from '../../public/demos/find_design_bi_rectangle_constrained_single_u_tube.json'
-import prettier from 'prettier/standalone'
-import prettierBabelPlugin from 'prettier/plugins/babel'
-import prettierPluginEstree from 'prettier/plugins/estree'
+import { formatJson } from './utils'
 
 const preset = definePreset(Aura, {
   semantic: {
@@ -77,7 +74,8 @@ const preset = definePreset(Aura, {
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideBrowserGlobalErrorListeners(),
+    provideZonelessChangeDetection(),
     provideAnimationsAsync(),
     providePrimeNG({
       theme: {
@@ -93,9 +91,18 @@ export const appConfig: ApplicationConfig = {
     provideMonacoEditor({
       baseUrl: `${window.location.origin}/monaco/vs`,
       defaultOptions: {
+        formatOnPaste: true,
         inlayHints: {
           fontSize: 13,
+          padding: true,
+          fontFamily: 'Inter Variable',
         },
+        minimap: {
+          renderCharacters: false,
+          maxColumn: 80,
+        },
+        mouseWheelZoom: true,
+        rulers: [{ column: 80, color: 'rgba(255,255,255,0.1)' }],
         scrollBeyondLastLine: false,
       } satisfies monacoType.editor.IEditorOptions,
       onMonacoLoad: () => {
@@ -124,14 +131,10 @@ export const appConfig: ApplicationConfig = {
         // Prettier formatting
         monaco.languages.registerDocumentFormattingEditProvider('json', {
           async provideDocumentFormattingEdits(model) {
-            const formatted = await prettier.format(model.getValue(), {
-              parser: 'json',
-              plugins: [prettierBabelPlugin, prettierPluginEstree],
-            })
             return [
               {
                 range: model.getFullModelRange(),
-                text: formatted,
+                text: await formatJson(model.getValue()),
               },
             ]
           },

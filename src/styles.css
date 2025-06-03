@@ -15,6 +15,10 @@
   --color-inactive: #5f93d6;
 }
 
+:root {
+  --p-button-text-primary-color: theme('colors.green.500');
+}
+
 @layer base {
   html {
     @apply text-base;
@@ -25,7 +29,7 @@
   }
 
   app-root {
-    @apply flex h-svh w-svw flex-col;
+    @apply flex h-svh flex-col;
   }
 }
 
@@ -56,6 +60,10 @@
   border-radius: 50%;
   border: 3px solid;
   border-color: #3ed339 transparent;
+}
+
+.p-menubar-submenu {
+  @apply z-10;
 }
 
 @keyframes rotation {

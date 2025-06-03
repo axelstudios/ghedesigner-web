@@ -35,7 +35,7 @@ const pyodideReady = (async () => {
   const dependencies = ['click', 'jsonschema', 'scipy', 'typing-extensions']
 
   // Primary wheels must be loaded sequentially
-  const wheels = ['secondarycoolantprops-1.3', 'pygfunction-2.3.0.dev0', 'ghedesigner-2.0']
+  const wheels = ['secondarycoolantprops-1.3', 'pygfunction-2.4.0.dev0', 'ghedesigner-2.0']
 
   const pyodide = await loadPyodide()
   stepLoading()
@@ -81,52 +81,54 @@ async function listFiles() {
   `)
 }
 
-async function runDemo(id: string, demo: string) {
+async function runDemo(id: string, code: string) {
   const pyodide = await pyodideReady
+
+  pyodide.FS.writeFile('/demo.json', code)
 
   const start = performance.now()
   await pyodide.runPythonAsync(`
-    import os
-    from importlib.resources import files
-    from json import loads
-    from pathlib import Path
+import os
+from importlib.resources import files
+from json import loads
+from pathlib import Path
 
-    import ghedesigner
-    from ghedesigner.__main__ import _run_manager_from_cli_worker as run_manager_from_cli_worker
-    from jsonschema import validate, ValidationError
-    from pyodide.http import pyfetch
+import ghedesigner
+from ghedesigner.main import run
+from jsonschema import validate, ValidationError
+from pyodide.http import pyfetch
 
-    schema_path = files("ghedesigner") / "schemas" / "ghedesigner.schema.json"
-    schema = loads(schema_path.read_text())
-    
-    # TODO this is conditional on one file
-    if "${demo}" == "find_design_simple_system.json":
-        res = await pyfetch("demos/test-data/test_bldg_loads.csv")
-        if res.ok:
-            os.mkdir("/home/pyodide/test_data")
-            Path("/home/pyodide/test_data/test_bldg_loads.csv").write_text(await res.text())
+schema_path = files("ghedesigner") / "schemas" / "ghedesigner.schema.json"
+schema = loads(schema_path.read_text())
 
-    res = await pyfetch("demos/${demo}")
-    if res.ok:
-        demo_content = await res.text()
-        Path("/demo.json").write_text(demo_content)
-        instance = loads(demo_content)
+# TODO this is conditional on one file
+# if "{demo}" == "find_design_simple_system.json":
+#     res = await pyfetch("demos/test-data/test_bldg_loads.csv")
+#     if res.ok:
+#         os.mkdir("/home/pyodide/test_data")
+#         Path("/home/pyodide/test_data/test_bldg_loads.csv").write_text(await res.text())
 
-        try:
-            validate(instance=instance, schema=schema)
-            print("  ✅ Validation Successful")
-        except ValidationError as error:
-            print("  ❌ Validation Error:", error)
+# res = await pyfetch("demos/{demo}")
+# if res.ok:
+#     demo_content = await res.text()
+#     Path("/demo.json").write_text(demo_content)
+demo_content = Path("/demo.json").read_text(encoding="utf-8")
+instance = loads(demo_content)
 
-        code = run_manager_from_cli_worker(Path("/demo.json"), Path("/demo_outputs"))
-        print("  ✅ Simulation Successful, code", code)
-  `)
+try:
+    validate(instance=instance, schema=schema)
+    print("  ✅ Validation Successful")
+except ValidationError as error:
+    print("  ❌ Validation Error:", error)
+
+code = run(Path("/demo.json"), Path("/demo_outputs"))
+print("  ✅ Simulation Successful, code", code)
+`)
   const end = performance.now()
 
   sendMessage({
     type: 'result',
     id,
-    name: demo,
     captured,
     time: Math.round((end - start) / 100) / 10,
   })

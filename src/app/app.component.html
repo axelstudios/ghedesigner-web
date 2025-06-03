@@ -1,8 +1,11 @@
 <!--<app-loading [progress]="(loadingProgress.value / loadingProgress.total || 0) * 100"></app-loading>-->
 
-<p-menubar class="flex min-h-11" [model]="items" [autoDisplay]="true" breakpoint="640px" styleClass="w-full border-none">
+<p-menubar class="h-11 flex-none" [model]="menu" [autoDisplay]="true" breakpoint="640px" styleClass="w-full border-none">
   <ng-template #start>
-    <div class="justify-center pr-4 pl-3 leading-none font-bold">GHEDesigner</div>
+    <div class="flex items-center gap-2 pr-4 pl-3 leading-none font-bold select-none">
+      <img class="w-4" src="favicon.svg" />
+      <span>GHEDesigner</span>
+    </div>
   </ng-template>
 
   <ng-template #end>
@@ -12,25 +15,44 @@
   </ng-template>
 </p-menubar>
 
-<div class="divide-divider flex max-h-[calc(100svh-44px)] flex-grow divide-x">
-  <div class="divide-divider flex w-1/2 divide-x">
-    <div class="flex flex-col text-[13px]">
-      @for (demo of demos; track demo) {
-        <div class="flex h-8 items-center gap-2">
-          <i class="pi pi-check-circle pl-1.5 text-green-500"></i>
+<main class="divide-divider flex flex-1 divide-x overflow-hidden">
+  @if ((state.files | keyvalue).length > 0) {
+    <div class="w-80 flex-none flex-col text-[13px]">
+      @for (file of sortedFiles; track file.uri) {
+        @let isActive = state.selectedUri === file.uri;
+        <div
+          class="text-inactive hover:text-active group flex h-8 items-center space-x-2"
+          #fileRow
+          (click)="activateUri(file.uri)"
+          (mouseup)="handleMiddleClick(file.uri, $event)"
+          (contextmenu)="onRightClick(file.uri)"
+        >
+          <div class="ml-0.5 h-full w-1 rounded-full" [ngClass]="{ 'bg-[#3574f0]': isActive }"></div>
+          <i class="pi pi-check-circle text-green-500"></i>
           <div
-            class="text-active w-48 cursor-default truncate"
-            [pTooltip]="demo"
+            class="mr-0 w-64 cursor-default truncate select-none"
+            [pTooltip]="file.name"
             [showDelay]="500"
             [positionLeft]="32"
+            [ngClass]="{ 'text-active': isActive }"
             tooltipPosition="right"
             tooltipStyleClass="text-sm"
           >
-            {{ demo }}
+            {{ file.name }}
           </div>
-          <p-button [rounded]="true" [text]="true" icon="pi pi-times" size="small" />
+          <span class="invisible group-hover:visible" [ngClass]="{ visible: isActive }">
+            <p-button
+              [rounded]="true"
+              [text]="true"
+              (click)="closeFile(file.uri, $event)"
+              icon="pi pi-times"
+              size="small"
+              severity="secondary"
+            />
+          </span>
         </div>
-        @if (demo === 'find_design_simple_system.json') {
+        <p-contextmenu [target]="fileRow" [model]="fileContextMenu"></p-contextmenu>
+        <!-- @if (file === 'find_design_simple_system.json') {
           <div class="flex h-8 items-center gap-2">
             <i class="pi pi-table pl-6.5"></i>
             <div
@@ -44,34 +66,23 @@
               test_bldg_loads.csv
             </div>
           </div>
-        }
+        }-->
       }
     </div>
-    <div class="flex flex-1 overflow-x-hidden font-mono">
-      <ngx-monaco-editor
-        class="h-[calc(100svh-44px)]! w-full! overflow-hidden"
-        [options]="editorOptions"
-        [model]="editorModel"
-        (onInit)="onEditorInit($event)"
-      ></ngx-monaco-editor>
+    <div class="divide-divider flex flex-1 flex-col divide-x overflow-auto">
+      <div class="divide-divider flex flex-1 flex-col divide-y overflow-x-hidden">
+        <div class="flex min-h-10 items-center justify-end-safe px-1.5">
+          <p-button [rounded]="true" [text]="true" (click)="runFile()" icon="pi pi-play" size="small" />
+        </div>
+        <div class="flex-1 overflow-auto">
+          <ngx-monaco-editor class="h-full! overflow-hidden" [options]="editorOptions" (onInit)="onEditorInit($event)"></ngx-monaco-editor>
+        </div>
+      </div>
     </div>
-  </div>
-  <div class="w-1/2"></div>
-</div>
-
-@if ((results | keyvalue).length > 0) {
-  <table class="table-auto border-separate border-spacing-2 border border-gray-500">
-    @for (demo of demos; track demo) {
-      <tr>
-        <td>{{ demo }}</td>
-        @if (results[demo] === -1) {
-          <td class="flex-fill flex h-6 min-w-16 items-center justify-center"><span class="loader"></span></td>
-        } @else if (results[demo] === undefined) {
-          <td></td>
-        } @else {
-          <td class="min-w-16 text-right">{{ results[demo] | number: '1.1-1' }}s ✅</td>
-        }
-      </tr>
-    }
-  </table>
-}
+    <div class="flex-1 items-center-safe justify-center-safe overflow-auto font-medium text-current/30"></div>
+  } @else {
+    <div class="flex flex-1 items-center-safe justify-center-safe text-xl font-medium text-current/30 select-none">
+      Open a demo or create a new file to get started
+    </div>
+  }
+</main>
