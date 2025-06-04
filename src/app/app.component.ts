@@ -104,6 +104,7 @@ export class AppComponent implements OnInit {
         {
           label: 'Undo',
           icon: PrimeIcons.REPLAY,
+          disabled: true,
           command: () => {
             this.editor?.trigger('keyboard', 'undo', {})
           },
@@ -111,6 +112,7 @@ export class AppComponent implements OnInit {
         {
           label: 'Redo',
           icon: PrimeIcons.REFRESH,
+          disabled: true,
           command: () => {
             this.editor?.trigger('keyboard', 'redo', {})
           },
@@ -201,46 +203,25 @@ export class AppComponent implements OnInit {
     // await this.requestResponse({ type: 'listFiles', id: uuid() })
   }
 
-  getPromiseAndResolve() {
-    let resolve!: (value: unknown) => void
-    const promise = new Promise((res) => {
-      resolve = res
-    })
-    return { promise, resolve }
-  }
-
-  requestResponse(message: Request) {
-    const { promise, resolve } = this.getPromiseAndResolve()
-    const worker = this.worker!
-    const { id: idWorker } = message
-    worker.addEventListener('message', function listener(event) {
-      if (event.data?.id !== idWorker) {
-        return
-      }
-      // This listener is done so remove it.
-      worker.removeEventListener('message', listener)
-      // Filter the id out of the result
-      const { id, ...rest } = event.data
-      resolve(rest)
-    })
-    this.sendMessage(message)
-    return promise
-  }
-
-  sendMessage(message: Request) {
-    this.worker?.postMessage(message)
-  }
-
   onEditorInit(editor: editor.IStandaloneCodeEditor) {
     this.monaco ??= window.monaco
     this.editor = editor
     this.editorReady$.next(true)
 
     // TODO use this to mark files as modified
-    this.monaco.editor.onDidChangeMarkers((uris) => {
-      console.log('CHANGE DETECTED', uris)
+    this.monaco.editor.onDidChangeMarkers((_uris) => {
       const markers = this.monaco.editor.getModelMarkers({ owner: 'json' })
-      // console.log(markers)
+      console.log('Validation change:', markers)
+    })
+
+    // Re‐compute canUndo/canRedo on edit:
+    editor.onDidChangeModelContent(() => {
+      this.updateUndoRedoMenuState()
+    })
+
+    // Re‐compute canUndo/canRedo on model change:
+    editor.onDidChangeModel(() => {
+      this.updateUndoRedoMenuState()
     })
 
     let state = localStorage.getItem('state')
@@ -272,24 +253,6 @@ export class AppComponent implements OnInit {
     }))
 
     return files.sort((a, b) => naturalSort(a.name, b.name))
-  }
-
-  async loadDemo(demo: string) {
-    const uri = `inmemory://demo/${demo}`
-
-    if (!(uri in this.state.files)) {
-      const response = await fetch(`demos/${demo}`)
-      this.state.files[uri] = {
-        initialCode: await response.text(),
-      }
-    }
-
-    // We only need to call activate if the editor is already initialized
-    if (Object.keys(this.state.files).length > 1) {
-      this.activateUri(uri)
-    } else {
-      this.state.selectedUri = uri
-    }
   }
 
   activateUri(uri: string, initial = false) {
@@ -348,5 +311,66 @@ export class AppComponent implements OnInit {
 
     // List files
     // await this.requestResponse({ type: 'listFiles', id: uuid() })
+  }
+
+  private getPromiseAndResolve() {
+    let resolve!: (value: unknown) => void
+    const promise = new Promise((res) => {
+      resolve = res
+    })
+    return { promise, resolve }
+  }
+
+  private requestResponse(message: Request) {
+    const { promise, resolve } = this.getPromiseAndResolve()
+    const worker = this.worker!
+    const { id: idWorker } = message
+    worker.addEventListener('message', function listener(event) {
+      if (event.data?.id !== idWorker) {
+        return
+      }
+      // This listener is done so remove it.
+      worker.removeEventListener('message', listener)
+      // Filter the id out of the result
+      const { id, ...rest } = event.data
+      resolve(rest)
+    })
+    this.sendMessage(message)
+    return promise
+  }
+
+  private sendMessage(message: Request) {
+    this.worker?.postMessage(message)
+  }
+
+  private async loadDemo(demo: string) {
+    const uri = `inmemory://demo/${demo}`
+
+    if (!(uri in this.state.files)) {
+      const response = await fetch(`demos/${demo}`)
+      this.state.files[uri] = {
+        initialCode: await response.text(),
+      }
+    }
+
+    // We only need to call activate if the editor is already initialized
+    if (Object.keys(this.state.files).length > 1) {
+      this.activateUri(uri)
+    } else {
+      this.state.selectedUri = uri
+    }
+  }
+
+  private updateUndoRedoMenuState() {
+    const model = this.editor?.getModel()
+    if (model) {
+      const canUndo = (model as any).canUndo()
+      const canRedo = (model as any).canRedo()
+
+      if (this.menu[1].items) {
+        this.menu[1].items[0].disabled = !canUndo
+        this.menu[1].items[1].disabled = !canRedo
+      }
+    }
   }
 }
