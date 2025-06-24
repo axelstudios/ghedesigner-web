@@ -1,17 +1,23 @@
 export type Request =
   | {
-      type: 'runDemo'
-      id: string
-      demo: string
+      type: 'runFile'
+      name: string
+      code: string
+    }
+  | {
+      type: 'closeFile'
+      name: string
     }
   | {
       type: 'listFiles'
-      id: string
     }
+
+export type RequestWithId = Request & { id: string }
 
 export type Result = {
   type: 'result'
   captured: { level: string; args: unknown[]; time: number }[]
+  files: Record<string, string>
   time: number
 }
 

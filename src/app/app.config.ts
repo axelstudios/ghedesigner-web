@@ -89,7 +89,7 @@ export const appConfig: ApplicationConfig = {
       },
     }),
     provideMonacoEditor({
-      baseUrl: `${window.location.origin}/monaco/vs`,
+      baseUrl: `${window.location.href}/monaco/vs`,
       defaultOptions: {
         formatOnPaste: true,
         inlayHints: {
@@ -122,7 +122,7 @@ export const appConfig: ApplicationConfig = {
           schemas: [
             {
               uri: 'https://github.com/BETSRG/GHEDesigner/blob/develop/ghedesigner/schemas/ghedesigner.schema.json',
-              fileMatch: ['*'],
+              fileMatch: ['inmemory://demo/*', 'inmemory://user/*'],
               schema,
             },
           ],

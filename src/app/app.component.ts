@@ -4,8 +4,9 @@ import { MonacoEditorModule } from 'ngx-monaco-editor-v2'
 import { MenuItem, PrimeIcons } from 'primeng/api'
 import { ButtonModule } from 'primeng/button'
 import { MenubarModule } from 'primeng/menubar'
+import { SelectModule } from 'primeng/select'
 import { TooltipModule } from 'primeng/tooltip'
-import type { Request, Response, Result } from './app.types'
+import { Request, RequestWithId, Response, Result } from './app.types'
 import { demos } from './demos'
 import { LoadingComponent } from './loading/loading.component'
 import { FormsModule } from '@angular/forms'
@@ -25,7 +26,17 @@ import { v7 as uuid } from 'uuid'
 
 @Component({
   selector: 'app-root',
-  imports: [ButtonModule, CommonModule, LoadingComponent, MenubarModule, MonacoEditorModule, TooltipModule, FormsModule, ContextMenu],
+  imports: [
+    ButtonModule,
+    CommonModule,
+    LoadingComponent,
+    MenubarModule,
+    MonacoEditorModule,
+    SelectModule,
+    TooltipModule,
+    FormsModule,
+    ContextMenu,
+  ],
   templateUrl: './app.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -36,8 +47,11 @@ export class AppComponent implements OnInit {
   private ref = inject(ChangeDetectorRef)
 
   private editorReady$ = new BehaviorSubject(false)
+  private viewerReady$ = new BehaviorSubject(false)
 
   editor?: editor.IStandaloneCodeEditor
+  viewer?: editor.IStandaloneCodeEditor
+
   editorOptions: editor.IGlobalEditorOptions = {
     insertSpaces: true,
     tabSize: 2,
@@ -55,6 +69,9 @@ export class AppComponent implements OnInit {
       string,
       {
         initialCode?: string
+        isRunning?: boolean
+        result?: Result
+        selectedResult?: string
         viewState?: editor.ICodeEditorViewState
       }
     >
@@ -74,7 +91,7 @@ export class AppComponent implements OnInit {
           command: () => {
             const uri = uniqueUri('inmemory://user/find_design.json', Object.keys(this.state.files))
             this.state.files[uri] = {
-              initialCode: '{\n  "version": 1\n}',
+              initialCode: '{\n  "version": 2\n}',
             }
             // We only need to call activate if the editor is already initialized
             if (Object.keys(this.state.files).length > 1) {
@@ -190,17 +207,6 @@ export class AppComponent implements OnInit {
   async ngOnInit() {
     await this.isPyodideLoadedPromise
     console.log('pyodide loaded')
-
-    // TODO do something
-    // for (const demo of demos) {
-    //   this.results[demo] = -1
-    //   console.log(`Running demo: ${demo}...`)
-    //
-    //   const result = (await this.requestResponse({ type: 'runDemo', demo, id: uuid() })) as Result
-    //   this.results[demo] = result.time
-    // }
-    //
-    // await this.requestResponse({ type: 'listFiles', id: uuid() })
   }
 
   onEditorInit(editor: editor.IStandaloneCodeEditor) {
@@ -242,6 +248,21 @@ export class AppComponent implements OnInit {
     // TODO update state
   }
 
+  onViewerInit(viewer: editor.IStandaloneCodeEditor) {
+    this.monaco ??= window.monaco
+    this.viewer = viewer
+    this.viewerReady$.next(true)
+
+    this.viewer.updateOptions({
+      readOnly: true,
+    })
+
+    if (this.state.selectedUri) {
+      const file = this.state.files[this.state.selectedUri]
+      if (file.selectedResult) this.updateViewer(file.selectedResult)
+    }
+  }
+
   name(uri: string) {
     return Uri.parse(uri).path.replace(/^\/|\.json$/g, '')
   }
@@ -267,11 +288,23 @@ export class AppComponent implements OnInit {
         }
         this.editor?.setModel(model)
       })
+
+      if (this.state.files[uri].result) {
+        this.viewerReady$.pipe(filter(Boolean), take(1)).subscribe(() => {
+          if (this.state.files[uri].selectedResult) {
+            this.updateViewer(this.state.files[uri].selectedResult)
+          }
+        })
+      } else {
+        this.viewerReady$.next(false)
+      }
     }
   }
 
-  closeFile(uri: string, event?: Event) {
+  async closeFile(uri: string, event?: Event) {
     event?.stopPropagation()
+
+    // TODO stop run if already running
 
     if (this.state.files[uri]) {
       // TODO prompt the user about losing changes
@@ -285,18 +318,37 @@ export class AppComponent implements OnInit {
           this.activateUri(nextFile.uri)
         } else {
           this.editorReady$.next(false)
+          this.viewerReady$.next(false)
         }
       }
 
       this.monaco.editor.getModel(Uri.parse(uri))?.dispose()
       delete this.state.files[uri]
+
+      await this.requestResponse({
+        type: 'closeFile',
+        name: this.name(uri),
+      })
+
+      console.log(
+        'files:',
+        await this.requestResponse({
+          type: 'listFiles',
+        }),
+      )
+
+      // TODO remove models for result files
     }
   }
 
   handleMiddleClick(file: string, event: MouseEvent) {
     if (event.button === 1) {
-      this.closeFile(file)
+      void this.closeFile(file)
     }
+  }
+
+  keys(obj: Record<string, unknown>) {
+    return Object.keys(obj).toSorted(naturalSort)
   }
 
   onRightClick(file: string) {
@@ -304,13 +356,40 @@ export class AppComponent implements OnInit {
   }
 
   async runFile() {
-    const code = this.editor?.getValue()
-    // TODO validate
-    const result = (await this.requestResponse({ type: 'runDemo', demo: code ?? '', id: uuid() })) as Result
-    console.log(result)
+    if (!this.state.selectedUri) {
+      console.error('runFile: No file selected')
+      return
+    }
 
-    // List files
-    // await this.requestResponse({ type: 'listFiles', id: uuid() })
+    const code = this.editor?.getValue() ?? ''
+    const name = this.name(this.state.selectedUri)
+
+    this.setRunning(this.state.selectedUri, true)
+
+    // TODO move this to a function that marks for check
+    this.state.files[this.state.selectedUri].isRunning = true
+
+    // TODO validate first
+    const result = (await this.requestResponse({
+      type: 'runFile',
+      name,
+      code,
+    })) as Result
+
+    const file = this.state.files[this.state.selectedUri]
+    const resultFiles = this.keys(result.files)
+    const preferred = ['SimulationSummary.txt', 'SimulationSummary.json']
+    file.selectedResult = preferred.find((name) => resultFiles.includes(name)) || resultFiles[0]
+    file.result = result
+
+    // TODO add result code to monaco model rather than state object
+    for (const [filename, code] of Object.entries(file.result.files)) {
+      const uri = `inmemory://result/${this.name(this.state.selectedUri)}/${filename}`
+      const language = filename.replace(/.*\./, '')
+      this.monaco.editor.createModel(code, language, Uri.parse(uri))
+    }
+
+    this.setRunning(this.state.selectedUri, false)
   }
 
   private getPromiseAndResolve() {
@@ -322,11 +401,11 @@ export class AppComponent implements OnInit {
   }
 
   private requestResponse(message: Request) {
+    const requestId = uuid()
     const { promise, resolve } = this.getPromiseAndResolve()
     const worker = this.worker!
-    const { id: idWorker } = message
     worker.addEventListener('message', function listener(event) {
-      if (event.data?.id !== idWorker) {
+      if (event.data?.id !== requestId) {
         return
       }
       // This listener is done so remove it.
@@ -335,12 +414,17 @@ export class AppComponent implements OnInit {
       const { id, ...rest } = event.data
       resolve(rest)
     })
-    this.sendMessage(message)
+    this.sendMessage({ ...message, id: requestId })
     return promise
   }
 
-  private sendMessage(message: Request) {
+  private sendMessage(message: RequestWithId) {
     this.worker?.postMessage(message)
+  }
+
+  private setRunning(uri: string, isRunning: boolean) {
+    this.state.files[uri].isRunning = isRunning
+    this.ref.markForCheck()
   }
 
   private async loadDemo(demo: string) {
@@ -371,6 +455,15 @@ export class AppComponent implements OnInit {
         this.menu[1].items[0].disabled = !canUndo
         this.menu[1].items[1].disabled = !canRedo
       }
+    }
+  }
+
+  updateViewer(selectedResult: string) {
+    if (this.viewer && this.state.selectedUri) {
+      const uri = `inmemory://result/${this.name(this.state.selectedUri)}/${selectedResult}`
+
+      const model = this.monaco.editor.getModel(Uri.parse(uri))
+      if (model) this.viewer.setModel(model)
     }
   }
 }

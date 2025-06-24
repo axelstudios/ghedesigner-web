@@ -1,6 +1,8 @@
 /// <reference lib="webworker" />
 let loadingProgress = 0
-const totalProgress = 6
+const totalProgress = 5
+
+const decoder = new TextDecoder()
 
 // Capture console logs before loading anything
 const captured: { level: string; args: unknown[]; time: number }[] = []
@@ -15,16 +17,21 @@ for (const level of ['log', 'warn', 'error'] as const) {
   }
 }
 
-addEventListener('message', async ({ data }: MessageEvent<Request>) => {
-  if (data.type === 'runDemo') {
-    await runDemo(data.id, data.demo)
+addEventListener('message', async ({ data }: MessageEvent<RequestWithId>) => {
+  if (data.type === 'runFile') {
+    await runFile(data)
+  } else if (data.type === 'closeFile') {
+    console.log('Worker closing file:', data.name)
+    await closeFile(data)
   } else if (data.type === 'listFiles') {
-    await listFiles()
+    console.log(await listFiles('/home/pyodide/'))
+  } else {
+    console.error('Unknown request type:', data)
   }
 })
 
 import { loadPyodide as _loadPyodide } from 'pyodide'
-import type { Request, Response } from './app.types'
+import type { Request, RequestWithId, Response } from './app.types'
 
 const { loadPyodide } = (await import(/* @vite-ignore */ new URL('./pyodide/pyodide.mjs', import.meta.url).href)) as {
   loadPyodide: typeof _loadPyodide
@@ -32,15 +39,12 @@ const { loadPyodide } = (await import(/* @vite-ignore */ new URL('./pyodide/pyod
 
 const pyodideReady = (async () => {
   // The dependencies are hardcoded to prevent automatically loading more dependencies than necessary (e.g., matplotlib)
-  const dependencies = ['click', 'jsonschema', 'scipy', 'typing-extensions']
+  const packages = ['click', 'jsonschema', 'scipy', 'typing-extensions']
 
   // Primary wheels must be loaded sequentially
   const wheels = ['secondarycoolantprops-1.3', 'pygfunction-2.4.0.dev0', 'ghedesigner-2.0']
 
-  const pyodide = await loadPyodide()
-  stepLoading()
-
-  await pyodide.loadPackage(dependencies)
+  const pyodide = await loadPyodide({ packages })
   stepLoading()
   for (const wheel of wheels) {
     await pyodide.loadPackage(`wheels/${wheel}-py3-none-any.whl`)
@@ -58,81 +62,106 @@ const pyodideReady = (async () => {
   stepLoading()
 })()
 
-async function listFiles() {
+async function listFiles(path: string): Promise<string[]> {
+  console.log('listFiles', path)
   const pyodide = await pyodideReady
 
-  await pyodide.runPythonAsync(`
-    import sys
-    from pathlib import Path
-  
-    def walk(path: Path):
-        for entry in path.iterdir():
-            if entry.is_dir():
-                print(str(entry) + "/")
-                try:
-                    walk(entry)
-                except PermissionError as e:
-                    pass
-            else:
-                print(entry)
-  
-    root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/")
-    walk(root)
-  `)
+  pyodide.globals.set('walk_path', path)
+
+  return [
+    ...(await pyodide.runPythonAsync(`
+import sys
+from pathlib import Path
+
+files = []
+
+path = Path(walk_path)
+
+def walk(path: Path):
+    for entry in path.iterdir():
+        if entry.is_dir():
+            print(str(entry) + "/")
+            try:
+                walk(entry)
+            except PermissionError as e:
+                pass
+        else:
+            files.append(str(entry))
+
+walk(path)
+files
+`)),
+  ]
 }
 
-async function runDemo(id: string, code: string) {
+async function runFile({ code, id, name }: Extract<RequestWithId, { type: 'runFile' }>) {
   const pyodide = await pyodideReady
+  console.log('runFile', name)
 
-  pyodide.FS.writeFile('/demo.json', code)
+  const inputPath = `/home/pyodide/${name}.json`
+  const outputPath = `/home/pyodide/${name}/`
+  console.log('inputPath', inputPath)
+  console.log('outputPath', outputPath)
+
+  pyodide.FS.writeFile(inputPath, code)
+  pyodide.globals.set('input_path', inputPath)
+  pyodide.globals.set('output_path', outputPath)
 
   const start = performance.now()
   await pyodide.runPythonAsync(`
-import os
-from importlib.resources import files
-from json import loads
 from pathlib import Path
 
-import ghedesigner
 from ghedesigner.main import run
-from jsonschema import validate, ValidationError
 from pyodide.http import pyfetch
 
-schema_path = files("ghedesigner") / "schemas" / "ghedesigner.schema.json"
-schema = loads(schema_path.read_text())
-
-# TODO this is conditional on one file
-# if "{demo}" == "find_design_simple_system.json":
-#     res = await pyfetch("demos/test-data/test_bldg_loads.csv")
-#     if res.ok:
-#         os.mkdir("/home/pyodide/test_data")
-#         Path("/home/pyodide/test_data/test_bldg_loads.csv").write_text(await res.text())
-
-# res = await pyfetch("demos/{demo}")
-# if res.ok:
-#     demo_content = await res.text()
-#     Path("/demo.json").write_text(demo_content)
-demo_content = Path("/demo.json").read_text(encoding="utf-8")
-instance = loads(demo_content)
-
-try:
-    validate(instance=instance, schema=schema)
-    print("  ✅ Validation Successful")
-except ValidationError as error:
-    print("  ❌ Validation Error:", error)
-
-code = run(Path("/demo.json"), Path("/demo_outputs"))
-print("  ✅ Simulation Successful, code", code)
+run(Path(input_path), Path(output_path))
+print("  ✅ Simulation Successful")
 `)
   const end = performance.now()
+
+  const files = (await listFiles(outputPath)).reduce<Record<string, string>>((acc, file) => {
+    const filename = file.startsWith(outputPath) ? file.slice(outputPath.length) : file
+    acc[filename] = decoder.decode(pyodide.FS.readFile(file))
+    return acc
+  }, {})
 
   sendMessage({
     type: 'result',
     id,
     captured,
+    files,
     time: Math.round((end - start) / 100) / 10,
   })
   captured.length = 0
+}
+
+async function rmdirRecursive(path: string) {
+  const pyodide = await pyodideReady
+
+  for (const name of pyodide.FS.readdir(path)) {
+    if (name === '.' || name === '..') continue
+    const child = `${path}/${name}`
+    const stat = pyodide.FS.stat(child)
+    if (pyodide.FS.isDir(stat.mode)) {
+      await rmdirRecursive(child)
+    } else {
+      pyodide.FS.unlink(child)
+    }
+  }
+
+  pyodide.FS.rmdir(path)
+}
+
+async function closeFile({ name }: Extract<RequestWithId, { type: 'closeFile' }>) {
+  const pyodide = await pyodideReady
+  const path = `/home/pyodide/${name}`
+  console.log('Unlinking', `${path}.json`)
+  // TODO check if file exists before deleting
+  pyodide.FS.unlink(`${path}.json`)
+  console.log('rmdir', path)
+  await rmdirRecursive(`${path}/`)
+
+  console.log(await listFiles('/home/pyodide/'))
 }
 
 function stepLoading() {
