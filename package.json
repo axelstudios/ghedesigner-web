@@ -19,6 +19,7 @@
     "@angular/router": "^20.2.4",
     "@fontsource-variable/inter": "^5.2.6",
     "@primeng/themes": "^20.1.1",
+    "jszip": "^3.10.1",
     "monaco-editor": "^0.52.2",
     "ngx-monaco-editor-v2": "^20.0.0",
     "prettier": "^4.0.0-alpha.12",

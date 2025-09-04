@@ -1,21 +1,21 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject, OnInit } from '@angular/core'
+import { FormsModule } from '@angular/forms'
+import jszip from 'jszip'
+import type monacoType from 'monaco-editor'
+import { editor, Uri } from 'monaco-editor'
 import { MonacoEditorModule } from 'ngx-monaco-editor-v2'
 import { MenuItem, PrimeIcons } from 'primeng/api'
 import { ButtonModule } from 'primeng/button'
+import { ContextMenu } from 'primeng/contextmenu'
 import { MenubarModule } from 'primeng/menubar'
 import { SelectModule } from 'primeng/select'
 import { TooltipModule } from 'primeng/tooltip'
+import { BehaviorSubject, filter, take } from 'rxjs'
+import { v7 as uuid } from 'uuid'
 import { Request, RequestWithId, Response, Result } from './app.types'
 import { demos } from './demos'
-import { LoadingComponent } from './loading/loading.component'
-import { FormsModule } from '@angular/forms'
-import type monacoType from 'monaco-editor'
-import { editor, Uri } from 'monaco-editor'
 import { naturalSort, overrideLogging, uniqueUri } from './utils'
-import { BehaviorSubject, filter, take } from 'rxjs'
-import { ContextMenu } from 'primeng/contextmenu'
-import { v7 as uuid } from 'uuid'
 
 // window.addEventListener('unhandledrejection', (event) => {
 //   console.log('UNHANDLED REJECTION', event)
@@ -26,17 +26,7 @@ import { v7 as uuid } from 'uuid'
 
 @Component({
   selector: 'app-root',
-  imports: [
-    ButtonModule,
-    CommonModule,
-    LoadingComponent,
-    MenubarModule,
-    MonacoEditorModule,
-    SelectModule,
-    TooltipModule,
-    FormsModule,
-    ContextMenu,
-  ],
+  imports: [ButtonModule, CommonModule, MenubarModule, MonacoEditorModule, SelectModule, TooltipModule, FormsModule, ContextMenu],
   templateUrl: './app.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -255,6 +245,7 @@ export class AppComponent implements OnInit {
 
     this.viewer.updateOptions({
       readOnly: true,
+      rulers: [],
     })
 
     if (this.state.selectedUri) {
@@ -390,6 +381,31 @@ export class AppComponent implements OnInit {
     }
 
     this.setRunning(this.state.selectedUri, false)
+  }
+
+  async downloadFiles() {
+    if (!this.state.selectedUri) return
+    const file = this.state.files[this.state.selectedUri]
+    if (!file.result) return
+
+    const zip = new jszip()
+    for (const [filename, code] of Object.entries(file.result.files)) {
+      zip.file(filename, code)
+    }
+    const blob = await zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 9 },
+    })
+
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${this.name(this.state.selectedUri)} results.zip`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   private getPromiseAndResolve() {

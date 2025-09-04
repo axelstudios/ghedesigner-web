@@ -86,13 +86,16 @@
         <div class="divide-divider flex flex-1 flex-col divide-y overflow-x-hidden">
           <div class="flex min-h-10 items-center justify-between px-1.5">
             @if (file.result) {
-              <p-select
-                class="w-full md:w-56"
-                [(ngModel)]="file.selectedResult"
-                [options]="keys(file.result.files)"
-                (ngModelChange)="updateViewer($event)"
-                placeholder="Select a File"
-              />
+              <div class="flex gap-1">
+                <p-select
+                  class="w-full md:w-56"
+                  [(ngModel)]="file.selectedResult"
+                  [options]="keys(file.result.files)"
+                  (ngModelChange)="updateViewer($event)"
+                  placeholder="Select a File"
+                />
+                <p-button [rounded]="true" [text]="true" (click)="downloadFiles()" icon="pi pi-download" size="small" />
+              </div>
               <span>{{ file.result.time }}s</span>
             }
           </div>
