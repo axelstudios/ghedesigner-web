@@ -89,7 +89,7 @@ export const appConfig: ApplicationConfig = {
       },
     }),
     provideMonacoEditor({
-      baseUrl: `${window.location.href}/monaco/vs`,
+      baseUrl: `${window.location.href}monaco/vs`,
       defaultOptions: {
         formatOnPaste: true,
         inlayHints: {

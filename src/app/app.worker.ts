@@ -42,7 +42,7 @@ const pyodideReady = (async () => {
   const packages = ['click', 'jsonschema', 'scipy', 'typing-extensions']
 
   // Primary wheels must be loaded sequentially
-  const wheels = ['secondarycoolantprops-1.3', 'pygfunction-2.4.0.dev0', 'ghedesigner-2.0']
+  const wheels = ['secondarycoolantprops-1.3', 'pygfunction-2.3.1', 'bhresist-0.2.0', 'ghedesigner-2.0']
 
   const pyodide = await loadPyodide({ packages })
   stepLoading()
