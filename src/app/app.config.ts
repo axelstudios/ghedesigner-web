@@ -1,5 +1,5 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection } from '@angular/core'
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async'
+import { provideNoopAnimations } from '@angular/platform-browser/animations'
 import { definePreset } from '@primeng/themes'
 import Aura from '@primeng/themes/aura'
 import type monacoType from 'monaco-editor'
@@ -27,7 +27,7 @@ const preset = definePreset(Aura, {
       light: {
         primary: {
           color: '{zinc.950}',
-          inverseColor: '#ffffff',
+          contrastColor: '#ffffff',
           hoverColor: '{zinc.900}',
           activeColor: '{zinc.800}',
         },
@@ -41,32 +41,32 @@ const preset = definePreset(Aura, {
       dark: {
         primary: {
           color: '{zinc.50}',
-          inverseColor: '{zinc.950}',
+          contrastColor: '{zinc.950}',
           hoverColor: '{zinc.100}',
           activeColor: '{zinc.200}',
         },
         highlight: {
-          background: 'rgba(250, 250, 250, .16)',
-          focusBackground: 'rgba(250, 250, 250, .24)',
-          color: 'rgba(255,255,255,.87)',
-          focusColor: 'rgba(255,255,255,.87)',
+          background: 'rgba(250,250,250,0.16)',
+          focusBackground: 'rgba(250,250,250,0.24)',
+          color: 'rgba(255,255,255,0.87)',
+          focusColor: 'rgba(255,255,255,0.87)',
         },
       },
     },
   },
   components: {
     menubar: {
-      background: '#2b2d30',
-      border: {
-        radius: '0',
+      root: {
+        background: '#2b2d30',
+        borderRadius: '0',
       },
       submenu: {
         background: '#2b2d30',
       },
     },
     tooltip: {
-      max: {
-        width: 320,
+      root: {
+        maxWidth: '320px',
       },
     },
   },
@@ -76,7 +76,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
-    provideAnimationsAsync(),
+    provideNoopAnimations(),
     providePrimeNG({
       theme: {
         preset,

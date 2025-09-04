@@ -1,6 +1,6 @@
 export const demos = [
   'find_design_bi_rectangle_constrained_single_u_tube.json',
-  'find_design_bi_rectangle_constrained_single_u_tube_loads_path.json',
+  // 'find_design_bi_rectangle_constrained_single_u_tube_loads_path.json',
   'find_design_bi_rectangle_constrained_single_u_tube_prop_boundary_only.json',
   'find_design_bi_rectangle_double_u_tube_series.json',
   'find_design_bi_rectangle_single_u_tube.json',
