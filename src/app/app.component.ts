@@ -26,12 +26,12 @@ import { naturalSort, overrideLogging, uniqueUri } from './utils'
 
 @Component({
   selector: 'app-root',
-  imports: [ButtonModule, CommonModule, MenubarModule, MonacoEditorModule, SelectModule, TooltipModule, FormsModule, ContextMenu],
+  imports: [ButtonModule, CommonModule, ContextMenu, FormsModule, MenubarModule, MonacoEditorModule, SelectModule, TooltipModule],
   templateUrl: './app.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: {
-    // '[class.pointer-events-none]': '!isLoaded',
-  },
+  // host: {
+  //   '[class.pointer-events-none]': '!isLoaded',
+  // },
 })
 export class AppComponent implements OnInit {
   private ref = inject(ChangeDetectorRef)

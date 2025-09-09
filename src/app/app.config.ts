@@ -144,6 +144,7 @@ export const appConfig: ApplicationConfig = {
         monaco.languages.registerInlayHintsProvider('json', {
           async provideInlayHints(model) {
             const hints: monacoType.languages.InlayHint[] = []
+            const hintPositions: Set<string> = new Set()
 
             const workerAccessor = await monaco.languages.json.getWorker()
             const jsonWorker = await workerAccessor(model.uri)
@@ -162,6 +163,9 @@ export const appConfig: ApplicationConfig = {
                 formattedArrays.push({ start, end, unit: format })
 
                 const position = model.getPositionAt(end)
+                if (hintPositions.has(`${position.lineNumber}.${position.column}`)) continue
+
+                hintPositions.add(`${position.lineNumber}.${position.column}`)
                 hints.push({
                   position,
                   label: `: ${format}`,
@@ -180,9 +184,12 @@ export const appConfig: ApplicationConfig = {
                 }
 
                 // Position just after the literal
-                const pos = model.getPositionAt(node.offset + node.length)
+                const position = model.getPositionAt(node.offset + node.length)
+                if (hintPositions.has(`${position.lineNumber}.${position.column}`)) continue
+
+                hintPositions.add(`${position.lineNumber}.${position.column}`)
                 hints.push({
-                  position: pos,
+                  position,
                   label: `: ${format.replaceAll('^3', '³')}`,
                   kind: monaco.languages.InlayHintKind.Type,
                 })
